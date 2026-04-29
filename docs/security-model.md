@@ -6,6 +6,7 @@ This page summarizes current behavior. Normative security claims live in RFCs.
 
 - payload confidentiality via endpoint encryption/decryption
 - relay as untrusted store-and-forward infrastructure
+- relay lifecycle controls (`ack`/`delete`/`cleanup`) with optional local-dev capability token gating
 - client-side demo signature hooks (non-production)
 - gateway downgrade policy groundwork (outside trusted core) with explicit decisions:
   - reject
@@ -23,6 +24,7 @@ This page summarizes current behavior. Normative security claims live in RFCs.
 - production-grade signature lifecycle and key transparency
 - production network resolver service
 - production key agreement/KEM workflows
+- production-grade relay authentication/authorization model
 
 ## Normative References
 

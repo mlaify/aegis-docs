@@ -31,6 +31,7 @@ The script runs:
 - `cargo test -p aegis-crypto --features experimental-pq`
 - schema JSON parse checks in `aegis-spec`
 - local E2E smoke test `sh aegit-cli/scripts/local-e2e-demo.sh`
+  - includes lifecycle coverage: ack, post-ack fetch verification, delete, post-delete fetch verification, and cleanup
 
 ## Manual Review Before Tag
 
@@ -39,6 +40,12 @@ The script runs:
 - Confirm conformance doc reflects current implementation.
 - Confirm CLI signature status reporting is explicit for open flows.
 - Confirm relay validation/expiration behavior remains documented in RFC-0004 and conformance docs.
+- Confirm relay token policy and lifecycle endpoints remain documented in RFC-0004 and conformance docs.
+
+## Local-Dev Auth Caveat
+
+- Relay capability token support is local-dev/reference only.
+- It is not a production authz/authn model and does not provide user/account identity.
 
 ## Tag Naming Convention
 
@@ -50,3 +57,4 @@ The script runs:
 - Capture known limitations in release notes.
 - Keep alpha caveats visible in README/SECURITY docs.
 - Repeat caveat prominently: no production security guarantee in v0.1.0-alpha.
+- Reference implementation coverage in `test-matrix-v0.1.md`.

@@ -16,6 +16,14 @@ Use:
 - `release-runbook.md`
 - `../aegis-docs/scripts/validate-alpha.sh`
 
+Current demo flow includes:
+
+- relay store/fetch/open flow
+- signature status reporting
+- relay lifecycle acknowledgement/deletion flow
+- relay cleanup invocation
+- local-dev token-gated lifecycle operations
+
 ## Suggested Checks
 
 Core:
