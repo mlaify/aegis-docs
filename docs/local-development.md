@@ -13,6 +13,8 @@ Use:
 
 - `../aegit-cli/DEV-SETUP.md`
 - `../aegit-cli/scripts/local-e2e-demo.sh`
+- `release-runbook.md`
+- `../aegis-docs/scripts/validate-alpha.sh`
 
 ## Suggested Checks
 
@@ -42,4 +44,11 @@ cd ../aegis-relay
 cargo fmt
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test
+```
+
+Workspace alpha validation:
+
+```sh
+cd ..
+sh aegis-docs/scripts/validate-alpha.sh
 ```

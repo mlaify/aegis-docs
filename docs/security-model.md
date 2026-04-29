@@ -19,6 +19,7 @@ This page summarizes current behavior. Normative security claims live in RFCs.
 ## What is not yet production-ready
 
 - post-quantum cryptography
+- `experimental-pq` in `aegis-crypto` is non-production only (placeholder boundary tests plus experimental kyber768 KEM wrapper)
 - production-grade signature lifecycle and key transparency
 - production network resolver service
 - production key agreement/KEM workflows
@@ -29,3 +30,8 @@ This page summarizes current behavior. Normative security claims live in RFCs.
 - `../aegis-spec/rfcs/RFC-0003-envelopes-and-private-payloads.md`
 - `../aegis-spec/rfcs/RFC-0005-cryptographic-suite-registry.md`
 - `../aegis-spec/docs/implementation-conformance-v0.1.md`
+
+## Supporting Notes
+
+- `pq-crypto-research.md` (non-normative candidate comparison and integration notes)
+- `../aegis-spec/docs/adr/ADR-0001-pq-crypto-boundary.md` (decision record)

@@ -45,9 +45,9 @@ Legacy top-level docs currently remain:
 
 They are being retained for compatibility while the `docs/` structure is established.
 
-## Current v0.1 Status Caveats
+## Current v0.1.0-alpha Status Caveats
 
-Aegis is in draft/prototype stage.
+Aegis `v0.1.0-alpha` is in draft/prototype stage.
 
 - no production post-quantum cryptography yet
 - no production resolver service yet
@@ -60,3 +60,8 @@ Aegis is in draft/prototype stage.
 - For protocol behavior changes, update `aegis-spec` first and then align docs here.
 
 See `CONTRIBUTING.md` for workflow details.
+
+Additional project-level notes:
+
+- `docs/v0.1.0-alpha-checklist.md`
+- `docs/versioning-policy.md`
