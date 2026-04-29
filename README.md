@@ -1,110 +1,76 @@
-# Aegis Workspace
+# Aegis Documentation
 
-This repository is the integration workspace for the Aegis reference stack.
+This repository (`aegis-docs`) is the documentation home for the Aegis system.
 
-It is not a single deployable service. It is the place where protocol specs, shared core crates, and reference implementations evolve together.
+It describes both:
 
-## Purpose of This Repository
+- the Aegis root workspace folder used for integrated development, and
+- the broader multi-repo architecture under `github.com/mlaify`.
 
-This repo exists to keep the Aegis protocol and implementations aligned in one working tree during early-stage development (`v0.1` draft).
+## Repository Context
 
-It contains:
+- Organization: `github.com/mlaify`
+- Documentation repo: `aegis-docs`
+- Local integrated workspace folder: `aegis/` (contains multiple Aegis component directories for coordinated development)
 
-- protocol specifications and schemas,
-- shared Rust protocol/crypto/API crates,
-- a runnable relay,
-- an operator CLI,
-- gateway/client/sdk scaffolding.
+## Aegis Root Folder (`aegis/`)
 
-## How It Fits Into Aegis
+The `aegis/` root folder is an integration workspace where protocol specs and implementations are developed and tested together.
 
-Aegis is organized as logical repositories/components:
+Typical contents in the root workspace:
 
-- `aegis-spec`: protocol definitions
-- `aegis-core`: shared Rust crates
-- `aegit-cli`: operator CLI
-- `aegis-relay`: message relay server
-- `aegis-gateway`: legacy boundary
-- `aegis-client`: user apps
-- `aegis-sdk`: developer integrations
+- `aegis-spec/`
+- `aegis-core/`
+- `aegit-cli/`
+- `aegis-relay/`
+- `aegis-gateway/`
+- `aegis-client/`
+- `aegis-sdk/`
+- `aegis-docs/`
 
-This workspace hosts those components together so protocol changes can be implemented and validated end-to-end.
+Use this workspace when you need cross-repo changes, local end-to-end validation, or coordinated protocol updates.
 
-## What Is Implemented Right Now
+## Aegis Repositories and Roles
 
-Implemented and usable today:
+- `aegis-spec`
+  - Protocol RFCs, schemas, and canonical wire contracts.
+- `aegis-core`
+  - Shared Rust crates for protocol objects, crypto traits, identity helpers, API types, and test utilities.
+- `aegit-cli`
+  - Operator/developer CLI for identity setup, message seal/open, and relay push/fetch flows.
+- `aegis-relay`
+  - Reference relay server (store-and-forward for sealed envelopes).
+- `aegis-gateway`
+  - Legacy interoperability boundary to isolate downgrade/compatibility concerns from protocol core.
+- `aegis-client`
+  - User-facing application surfaces (desktop/web/mobile).
+- `aegis-sdk`
+  - Developer integration surfaces and language SDKs.
+- `aegis-docs`
+  - Architecture, threat model, philosophy, and system-level documentation.
 
-- Draft RFCs and JSON schemas (`aegis-spec`).
-- Core message model crates (`aegis-core`), including `Envelope` and `PrivatePayload`.
-- Reference relay HTTP API (`aegis-relay`):
-  - `GET /healthz`
-  - `POST /v1/envelopes`
-  - `GET /v1/envelopes/:recipient_id`
-- CLI workflow (`aegit-cli`) for:
-  - `id init`, `id show`
-  - `msg seal`, `msg open`, `msg list`
-  - `relay push`, `relay fetch`
-- Local end-to-end loop: `seal -> push -> fetch -> open`.
+## What `aegis-docs` Contains
 
-Still draft / incomplete:
+- [Architecture](./architecture.md)
+  - System layers, core objects, trust model, and current vs future architecture.
+- [Threat Model](./threat-model.md)
+  - Protections, partial protections, explicit non-goals, and assumptions.
+- [Design Philosophy](./philosophy.md)
+  - Security and protocol design principles that guide Aegis direction.
 
-- production crypto suite and migration policy,
-- signature enforcement and prekey lifecycle,
-- relay authn/authz and lifecycle APIs,
-- federation and mature gateway compatibility behavior.
+## Recommended Reading Order
 
-## Build and Run
+1. [Design Philosophy](./philosophy.md)
+2. [Architecture](./architecture.md)
+3. [Threat Model](./threat-model.md)
 
-Prerequisites:
+## Documentation Conventions
 
-- Rust toolchain (stable)
+- Identity is cryptographic (`amp:did:key:...`), not domain-authority based.
+- End-to-end encryption is the default model for private payload content.
+- Relays are treated as untrusted for plaintext access.
+- Compatibility with legacy systems is treated as a boundary concern.
 
-Build core crates:
+## Status
 
-```bash
-cd aegis-core
-cargo build
-```
-
-Run relay server (listens on `127.0.0.1:8787`):
-
-```bash
-cd aegis-relay
-cargo run
-```
-
-Run CLI:
-
-```bash
-cd aegit-cli
-cargo run -- --help
-```
-
-Build gateway stub:
-
-```bash
-cd aegis-gateway
-cargo build
-```
-
-Optional checks:
-
-```bash
-cd aegis-core && cargo test
-cd ../aegis-relay && cargo test
-cd ../aegit-cli && cargo test
-```
-
-## Planned Next
-
-Near-term priorities for this workspace:
-
-- tighten protocol semantics from RFC draft to enforceable behavior,
-- move from demo crypto paths to production-grade suites,
-- add signature/authenticity and prekey lifecycle enforcement,
-- harden relay behavior (auth, retention, pagination, deletion, policy),
-- stabilize SDK/client integration surfaces around the core protocol.
-
-## Notes
-
-Treat current wire formats and APIs as draft-track. Pin versions and expect breaking changes while RFCs move toward stability.
+Aegis is currently in draft-stage protocol development. Documentation is explicit about what is implemented now versus what is planned next.
