@@ -16,6 +16,13 @@ From workspace root:
 sh aegis-docs/scripts/validate-alpha.sh
 ```
 
+Equivalent explicit feature-gated PQ check:
+
+```sh
+cd aegis-core
+cargo test -p aegis-crypto --features experimental-pq
+```
+
 The script runs:
 
 - `cargo fmt --check` where applicable
@@ -30,6 +37,8 @@ The script runs:
 - Confirm README status language still reflects draft/prototype alpha.
 - Confirm no production PQ/resolver/gateway claims were introduced.
 - Confirm conformance doc reflects current implementation.
+- Confirm CLI signature status reporting is explicit for open flows.
+- Confirm relay validation/expiration behavior remains documented in RFC-0004 and conformance docs.
 
 ## Tag Naming Convention
 
@@ -40,3 +49,4 @@ The script runs:
 
 - Capture known limitations in release notes.
 - Keep alpha caveats visible in README/SECURITY docs.
+- Repeat caveat prominently: no production security guarantee in v0.1.0-alpha.
