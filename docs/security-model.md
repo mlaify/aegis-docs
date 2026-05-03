@@ -31,6 +31,8 @@ This page summarizes current behavior. Normative security claims live in RFCs.
   - `AMP-ED25519-V1` (32-byte classical signing key)
   - `AMP-MLDSA65-V1` (1952-byte PQ verification key)
 - Private key material (`HybridPqPrivateKeyMaterial`) stored separately, never transmitted
+- `IdentityDocument` is self-certifying: signed by its own Ed25519 + Dilithium3 keys; signature verified before use
+- Network identity resolution: relay serves `PUT/GET /v1/identities/:id`; CLI publishes and resolves over HTTP
 
 ### Protocol Conformance
 
@@ -40,11 +42,8 @@ This page summarizes current behavior. Normative security claims live in RFCs.
 
 ## What is not yet production-ready (v0.2.0-alpha)
 
-- Network identity resolver (lookup and trust of remote IdentityDocuments over the network)
-- Prekey bundle consumption enforcement (one-time prekeys not yet enforced)
-- Self-certifying IdentityDocument signatures
-- Gateway SMTP/IMAP transformation (policy scaffold only)
-- Relay database persistence (in-memory storage)
+- Prekey bundle consumption enforcement (one-time prekeys not yet enforced at relay)
+- Full MIME transformation in gateway bridge (attachments and multipart not yet handled)
 - Client applications (desktop, mobile, web)
 - Key rotation and revocation workflows
 
