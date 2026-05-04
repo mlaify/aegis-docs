@@ -370,28 +370,24 @@ Not complete yet:
 - Forward secrecy via prekey single-use (see 5.4).
 - Key rotation continuity proofs.
 
-### 5.4 Forward Secrecy (in flight)
+### 5.4 Forward Secrecy (v0.3, complete)
 
-Current (v0.3 phases 1 + 2, shipped):
+Aegis v0.3 realizes end-to-end forward secrecy for hybrid PQ envelopes that flow through the prekey path. The chain has four links, all now shipped:
 
-- Prekey objects and `used_prekey_ids` field exist on the envelope.
-- Relay enforces atomic single-use of one-time prekeys: `(recipient_id, key_id)` is recorded in a `consumed_prekeys` table within the same SQLite transaction as the envelope insert. Replay or any conflict rolls the entire write back and surfaces as `409 prekey_already_used` (RFC-0003 §12, RFC-0004 §17).
-- Identity holders publish signed `PrekeyBundle` of one-time ML-KEM-768 prekeys via `POST /v1/identities/:id/prekeys`. Re-publish is idempotent; the relay verifies the bundle signature against the identity's already-published Ed25519 + Dilithium3 signing keys (RFC-0004 §12.5).
-- Senders atomically claim one prekey at a time via `GET /v1/identities/:id/prekey`. Each claim marks the prekey `claimed=1` in the same transaction as the read; concurrent claimers receive distinct prekeys.
-- The phase-2 published-check tightens phase-1: senders MUST claim before referencing — envelopes citing an unknown `key_id` are rejected as `400 unknown_prekey`.
-- CLI: `aegit id publish-prekeys --relay <url> --count N` generates a fresh batch of one-time prekeys, signs the bundle with the identity's hybrid keys, persists the private halves to `<id>.prekey-secrets.json` (append-merging across runs), and POSTs the public bundle to the relay.
+1. **Generate** (CLI). `aegit id publish-prekeys --relay <url> --count N` generates N fresh ML-KEM-768 one-time prekeys, signs the bundle with the identity's hybrid keys, persists the private halves to `<id>.prekey-secrets.json` (append-merging across runs), and POSTs the public bundle to the relay.
+2. **Publish + claim** (relay, phase 2). `POST /v1/identities/:id/prekeys` (signature-verified, `IdentityWrite` scoped, `INSERT OR IGNORE` idempotent) and `GET /v1/identities/:id/prekey` (atomic SELECT + UPDATE in one transaction; concurrent claimers receive distinct prekeys; `404 prekey_pool_empty` on exhaustion).
+3. **Seal** (sender CLI). When a relay is configured and `--no-prekey` wasn't passed, `aegit msg seal` calls `claim_one_time_prekey()`, substitutes the claimed Kyber768 public key for the recipient's long-term Kyber in the hybrid combine, and stamps `envelope.used_prekey_ids = [claimed.key_id]` before signing. On `PrekeyPoolExhausted` the seal falls back to the long-term Kyber with a stderr warning that forward secrecy is degraded for that one message.
+4. **Push + open + consume** (relay phase 1 + recipient CLI). Relay's `store_with_prekey_consumption` runs published-check + consumption-insert in one transaction; replay or unknown-key surfaces as `409 prekey_already_used` or `400 unknown_prekey` (RFC-0003 §12). On the recipient side, `aegit msg open` looks up the matching `OneTimePrekeySecret` in `<id>.prekey-secrets.json`, swaps it into `HybridPqSuite::for_recipient`, and **after a successful AEAD-verified decrypt** splices the consumed secret out and rewrites the file atomically (tmp + rename). Even compromise of recipient state after-the-fact cannot decrypt past messages whose secrets have been consumed.
 
-Remaining (v0.3 phase 3):
-
-- `aegit msg seal` claims a one-time prekey via the relay and binds the KEM/AEAD context to the consumed prekey public key (combined with the recipient's long-term X25519 key for the hybrid KEM). Forward secrecy is realized end-to-end at this point.
+The classical (X25519) half of the hybrid combine still uses the recipient's long-term key; classical forward secrecy is a future enhancement (would require ephemeral X25519 prekeys in the bundle and is independent of the v0.3 phase work).
 
 ---
 
 ## 6. What Is NOT Solved Yet
 
-Important explicit non-goals or incomplete areas as of `v0.2.0-alpha` plus in-flight v0.3 phases 1 + 2.
+Important explicit non-goals or incomplete areas as of `v0.2.0-alpha` plus shipped v0.3 phases 1 + 2 + 3.
 
-- Send-side prekey integration in `aegit msg seal` to realize end-to-end forward secrecy (v0.3 phase 3).
+- Classical (X25519) forward secrecy via ephemeral X25519 prekeys (v0.3 phase 3 added PQ forward secrecy only; the X25519 half still uses the recipient's long-term key).
 - Key rotation with relay-tracked epochs (v0.3).
 - Full MIME transformation in the legacy gateway: attachments, HTML multipart, inline images (v0.3).
 - Production client applications: web, desktop, mobile (v0.3 / v0.4).

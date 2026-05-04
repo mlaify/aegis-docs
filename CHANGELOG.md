@@ -10,6 +10,12 @@ All notable changes to this repository are documented here.
 - `architecture.md`: §5.4 (Forward Secrecy) rewritten to reflect phase 1 shipped vs phase 2/3 remaining; §6 (What Is NOT Solved Yet) reorganized.
 - `docs/v0.2.0-alpha-roadmap.md`: v0.3 section split into phases with phase 1 marked shipped.
 
+### v0.3.0-alpha — phase 3 (send-side integration; end-to-end forward secrecy)
+
+- `architecture.md` §5.4: rewritten as a four-link chain (generate / publish + claim / seal / push + open + consume) with all four shipped. Explicit forward-secrecy guarantee documented: each one-time prekey participates in exactly one KEM combine; the relay's atomic enforcement prevents replay; recipient consume-on-success deletes the local secret.
+- `architecture.md` §6: removed the "send-side prekey integration" gap. The remaining classical (X25519) forward-secrecy gap (would require ephemeral X25519 prekeys) is now explicit.
+- `docs/v0.2.0-alpha-roadmap.md`: phase 3 marked shipped with per-repo what-shipped table.
+
 ### v0.3.0-alpha — phase 2 (prekey publish + atomic claim)
 
 - `architecture.md` §5.4: documents the publish (`POST /v1/identities/:id/prekeys`) and atomic-claim (`GET /v1/identities/:id/prekey`) endpoints, the published-check that tightens phase 1 (envelopes citing an unknown `key_id` are rejected as `400 unknown_prekey`), and the `aegit id publish-prekeys` CLI flow.
