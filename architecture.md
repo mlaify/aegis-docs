@@ -2,29 +2,37 @@
 
 ## Scope and Status
 
-This document describes the Aegis architecture as implemented in the current `v0.1` draft stage, and separates it from planned future architecture.
+This document describes the Aegis architecture as implemented in `v0.2.0-alpha`, and separates it from planned future architecture.
 
 Aegis is an asynchronous secure messaging system built around cryptographic identity, end-to-end encrypted payloads, and zero-trust relay infrastructure.
 
 ## Current vs Future (Read This First)
 
-### Current architecture (implemented now)
+### Current architecture (implemented in v0.2.0-alpha)
 
-- Draft protocol definitions exist in `aegis-spec` RFCs and JSON schemas.
+- Protocol definitions exist in `aegis-spec` RFCs and JSON schemas (RFCs 0001–0006).
 - `Envelope` and `PrivatePayload` wire models are implemented in `aegis-core` (`aegis-proto`).
-- CLI flows for `seal`, `push`, `fetch`, and `open` are implemented via `aegit-cli`.
-- A reference HTTP relay exists in `aegis-relay` with file-backed envelope storage.
-- Identity addressing format is defined (`amp:did:key:<identifier>`), and aliases are treated as non-authoritative.
-- A demo symmetric suite is used for local development (`DemoXChaCha20Poly1305`).
+- CLI flows for `id init`, `id publish`, `id show`, `id list`, `msg seal`, `msg open`, `relay push`, `relay fetch`, `relay ack`, `relay delete`, `relay cleanup` are implemented via `aegit-cli`.
+- A reference HTTP relay exists in `aegis-relay` with **SQLite WAL persistence** via `tokio-rusqlite`.
+- Identity addressing format is defined (`amp:did:key:<identifier>`); identity documents are self-certifying (Ed25519-signed) and resolvable over HTTP via the relay.
+- Aliases are non-authoritative names indexed for O(1) lookup at the relay.
+- A **production hybrid post-quantum suite** is implemented: `AMP-HYBRID-PQ-V1` combines X25519 + ML-KEM-768 via HKDF-SHA256, with XChaCha20-Poly1305 AEAD.
+- A demo symmetric suite remains available for local development (`DemoXChaCha20Poly1305`).
+- Envelope signing/verification implemented for both Ed25519 and Dilithium3 (ML-DSA-65).
+- Relay authentication (multi-token, per-scope), structured JSONL audit logging, and retention controls are implemented.
+- Legacy email gateway (`aegis-gateway`) provides RFC 5321 SMTP inbound, IMAP4rev1, and `lettre`-based SMTP outbound, with downgrade policy enforced at the SMTP DATA boundary.
 
 ### Future architecture (planned, not implemented yet)
 
-- Production key exchange and signature verification flows.
-- Operational prekey lifecycle use (`used_prekey_ids` population/validation).
-- Authenticated and authorized relay APIs.
-- Federated multi-relay routing and cross-relay delivery.
-- Robust message lifecycle semantics (pagination, deletion, expiry enforcement).
-- Post-quantum suite migration and hardened cryptographic agility.
+- Operational prekey lifecycle: atomic single-use enforcement of `used_prekey_ids` (v0.3).
+- Key rotation with relay-tracked epochs (v0.3).
+- Full MIME transformation in the gateway: attachments, HTML multipart, inline images (v0.3).
+- Production client applications: web, desktop, mobile (v0.3 / v0.4).
+- Attachment blob transport with per-attachment content keys (v0.4).
+- Thread model (`thread_id` / `in_reply_to`) wired through clients (v0.4).
+- Federated multi-relay routing and cross-relay delivery (v1.0).
+- Rate limiting and abuse controls beyond per-token scoping (v1.0).
+- External security audit; FIPS 203/204 KAT test vectors (v1.0).
 
 ---
 
@@ -42,9 +50,11 @@ Purpose:
 
 Current implementation status:
 
-- Canonical identity format is defined in RFC-0002: `amp:did:key:<identifier>`.
-- `IdentityDocument` and `PrekeyBundle` schemas exist and define intended contracts.
-- Full verification and lifecycle enforcement are not yet wired through runtime paths.
+- Canonical identity format defined in RFC-0002: `amp:did:key:<identifier>`.
+- `IdentityDocument` and `PrekeyBundle` schemas implemented in `aegis-identity`.
+- Identity documents are self-certifying: signed with the holder's Ed25519 signing key and verified by `verify_identity_document_signature()` before acceptance.
+- HTTP identity resolver (`resolver.rs`) fetches identity documents from a relay by canonical id or alias.
+- Key rotation policy and prekey consumption enforcement remain future work (v0.3).
 
 ### 1.2 Message layer
 
@@ -56,8 +66,9 @@ Purpose:
 Current implementation status:
 
 - `Envelope` and `PrivatePayload` are implemented in JSON form.
-- `aegit msg seal` encrypts `PrivatePayload` into `Envelope.payload`.
+- `aegit msg seal` encrypts `PrivatePayload` into `Envelope.payload` using the suite advertised by the recipient identity (hybrid PQ when available, demo otherwise).
 - `aegit msg open` decrypts and materializes `PrivatePayload` locally.
+- Envelope outer signatures (Ed25519 or Dilithium3) are produced and verified by `EnvelopeSigner` / `EnvelopeVerifier`.
 
 ### 1.3 Transport layer
 
@@ -68,9 +79,21 @@ Purpose:
 
 Current implementation status:
 
-- Reference relay API is implemented over HTTP (`GET /healthz`, `POST /v1/envelopes`, `GET /v1/envelopes/:recipient_id`).
-- Relay persists envelope JSON files to local filesystem storage.
+- Reference relay implemented over HTTP with the following endpoints:
+  - `GET /healthz`
+  - `GET /v1/status` — operator metrics (envelope/identity counts, auth config)
+  - `POST /v1/envelopes` — push envelope (auth-scoped: `PushEnvelope`)
+  - `GET /v1/envelopes/:recipient_id` — list envelopes for a recipient
+  - `GET /v1/envelopes/:recipient_id/:envelope_id` — fetch a specific envelope
+  - `DELETE /v1/envelopes/:recipient_id/:envelope_id` — delete after ack (auth-scoped: `LifecycleChange`)
+  - `POST /v1/envelopes/:recipient_id/:envelope_id/ack` — acknowledge receipt
+  - `POST /v1/cleanup` — operator-triggered retention pass (auth-scoped: `LifecycleChange`)
+  - `PUT /v1/identities/:id` — publish identity document (auth-scoped: `IdentityWrite`)
+  - `GET /v1/identities/:id` — resolve identity by canonical id
+  - `GET /v1/aliases/:alias` — resolve identity by alias (O(1) indexed lookup)
+- Relay persists envelopes and identity documents in **SQLite with WAL journaling** via `tokio-rusqlite` (`storage.rs`).
 - Relay does not decrypt payloads.
+- HybridPq envelope wire fields are validated on ingest.
 
 ### 1.4 Client layer
 
@@ -82,9 +105,9 @@ Purpose:
 
 Current implementation status:
 
-- CLI client (`aegit-cli`) is the working client surface.
-- Message workflow is available end-to-end in local dev.
-- Rich end-user apps in `aegis-client` are present as repo structure, but protocol-critical flows are currently demonstrated through CLI/reference components.
+- CLI client (`aegit-cli`) is the working client surface, with full identity, message, and relay workflows.
+- Local identity persistence under `~/.aegis/aegit/`.
+- End-user applications in `aegis-client` (web, desktop, mobile) remain scaffolds; production clients are planned for v0.3 / v0.4.
 
 ### 1.5 Gateway layer
 
@@ -95,14 +118,18 @@ Purpose:
 
 Current implementation status:
 
-- `aegis-gateway` exists as the designated compatibility boundary.
-- Core downgrade and compatibility semantics are not fully implemented yet.
+- `aegis-gateway` runs an RFC 5321 SMTP inbound server (`smtp_server.rs`) and an IMAP4rev1 server (`imap_server.rs`) for legacy clients.
+- Outbound SMTP delivery via `lettre` (`smtp_client.rs`).
+- Downgrade policy is PQ-aware and is enforced at the SMTP DATA boundary: the `X-Aegis-Suite` header is parsed and the configured `DowngradeMode` (`AEGIS_GATEWAY_DOWNGRADE_MODE`) evaluated before message wrapping.
+- `X-Aegis-Identity` header drives SMTP-to-Aegis routing, with `amp:did:key:` RCPT TO as fallback.
+- `X-Aegis-Downgrade-Confirmed: true` is required when `downgrade_mode=require_user_confirmation`.
+- Full MIME transformation (attachments, HTML multipart, inline images) is deferred to v0.3.
 
 ---
 
 ## 2. Core Objects
 
-These objects are defined in RFCs/schemas and partially implemented in runtime code.
+These objects are defined in RFCs/schemas and implemented in runtime code.
 
 ### 2.1 `IdentityDocument`
 
@@ -120,12 +147,13 @@ Schema fields:
 - `encryption_keys[]`
 - `supported_suites[]`
 - `relay_endpoints[]`
-- `signature` (nullable)
+- `signature` (Ed25519 over canonical document bytes)
 
 Current status:
 
-- Schema-defined contract exists.
-- Full signature verification and key-rotation policy enforcement remain future work.
+- Schema-defined contract implemented and signed.
+- Signature verification enforced on relay publish and on client resolve.
+- Key rotation policy remains future work (v0.3).
 
 ### 2.2 `PrekeyBundle`
 
@@ -145,7 +173,7 @@ Schema fields:
 Current status:
 
 - Schema-defined contract exists.
-- Runtime prekey consumption and validation logic is not fully implemented in v0.1.
+- Runtime atomic single-use enforcement of `used_prekey_ids` is **not yet implemented** — targeted for v0.3. This is the primary blocker on a real forward-secrecy story.
 
 ### 2.3 `Envelope`
 
@@ -163,15 +191,16 @@ Implemented fields (`aegis_proto::Envelope`):
 - `created_at`
 - `expires_at` (nullable)
 - `content_type`
-- `suite_id`
-- `used_prekey_ids[]`
+- `suite_id` (e.g. `AMP-HYBRID-PQ-V1`)
+- `used_prekey_ids[]` (carried but not yet enforced)
 - `payload` (`nonce_b64`, `ciphertext_b64`)
-- `outer_signature_b64` (nullable)
+- `outer_signature_b64` (Ed25519 or Dilithium3, verified at open)
 
 Current status:
 
 - Fully implemented as JSON model and relay payload contract.
-- Signature field and prekey list are currently placeholders for future cryptographic workflows.
+- Outer signatures produced and verified end-to-end.
+- `used_prekey_ids` enforcement deferred to v0.3.
 
 ### 2.4 `PrivatePayload`
 
@@ -189,13 +218,13 @@ Implemented fields:
 - `body`
   - `mime`
   - `content`
-- `attachments[]`
+- `attachments[]` (manifest only)
 - `extensions`
 
 Current status:
 
 - Implemented for local seal/open and JSON wire representation.
-- Attachment transfer protocol beyond manifest references is future work.
+- Attachment blob transport (per-attachment content keys + blob upload/download endpoints) is future work (v0.4).
 
 ---
 
@@ -207,8 +236,9 @@ Aegis assumes relay operators may be curious, compromised, or malicious. This is
 
 Design implication:
 
-- Relays are expected to store and forward envelopes.
-- Relays are not trusted with plaintext and should not require access to private payload content.
+- Relays store and forward envelopes.
+- Relays are not trusted with plaintext and do not require access to private payload content.
+- Relays do verify identity document signatures (because identity is self-certifying), but do not verify private payload content.
 
 This is the zero-trust relay stance: infrastructure availability is useful, infrastructure trust is minimized.
 
@@ -218,32 +248,35 @@ Domain ownership is an operational naming mechanism, not a robust cryptographic 
 
 Design implication:
 
-- Identity verification should be based on keys and signed identity material.
+- Identity verification is based on keys and signed identity material.
 - Domain/provider transitions do not redefine trust identity.
 
 ### 3.3 Where trust is enforced
 
 Current trust enforcement points:
 
-- Sender/recipient clients: encryption/decryption and local policy.
-- Core protocol/data libraries (`aegis-core`): canonical security-sensitive object semantics.
+- Sender/recipient clients: encryption/decryption, envelope signature verification, local policy.
+- Core protocol/data libraries (`aegis-core`): canonical security-sensitive object semantics, signature verification, suite selection.
+- Relay: identity document signature verification on publish; per-token, per-scope authentication on write paths; structured audit of all writes.
 
 Current non-enforcement points (by design or not yet implemented):
 
 - Relay plaintext inspection (not required, not trusted).
-- Full runtime validation of signatures, prekey usage, and expiry (planned future hardening).
+- Atomic single-use enforcement of `used_prekey_ids` (planned v0.3).
+- Key rotation and epoch tracking (planned v0.3).
+- Federated cross-relay trust (planned v1.0).
 
 ---
 
 ## 4. Data Flow: `seal -> push -> store -> fetch -> open`
 
-The implemented reference flow is intentionally simple and auditable.
+The implemented reference flow.
 
 ### Step 1: `seal` (client-side)
 
-- Input: plaintext message intent + recipient identity context + local passphrase/demo suite parameters.
-- Action: client constructs `PrivatePayload`, encrypts it, and embeds encrypted blob in an `Envelope`.
-- Output: one envelope JSON object.
+- Input: plaintext message intent + recipient identity (resolved from alias or `amp:did:key:` via the relay's identity endpoints) + local key material.
+- Action: client constructs `PrivatePayload`, encrypts it under the recipient-advertised suite (hybrid PQ when available), and embeds the encrypted blob in an `Envelope`. Signs the envelope.
+- Output: one signed envelope JSON object.
 
 Current command:
 
@@ -252,7 +285,7 @@ Current command:
 ### Step 2: `push` (client to relay)
 
 - Input: sealed envelope JSON.
-- Action: client POSTs `StoreEnvelopeRequest` to relay endpoint.
+- Action: client POSTs `StoreEnvelopeRequest` to the relay, presenting an auth token with `PushEnvelope` scope.
 - Output: relay acceptance response (`accepted`, `relay_id`).
 
 Current command and endpoint:
@@ -262,17 +295,19 @@ Current command and endpoint:
 
 ### Step 3: `store` (relay-side)
 
-- Relay persists envelope as JSON file under recipient-partitioned storage path.
-- Relay treats payload blob as opaque ciphertext container.
+- Relay validates HybridPq wire fields if applicable.
+- Relay persists the envelope row in SQLite (WAL journaling) keyed by recipient and envelope id.
+- Relay treats the payload blob as an opaque ciphertext container.
+- Relay emits a structured audit event for the write.
 
 Current storage model:
 
-- `./data/<sanitized_recipient_id>/<envelope_id>.json`
+- SQLite database (default `./relay.db`); schema includes `envelopes`, `identities`, `identity_aliases`, and audit/retention metadata tables.
 
 ### Step 4: `fetch` (client from relay)
 
-- Recipient client requests all queued envelopes for a recipient identity.
-- Relay returns list of envelope objects (or empty list).
+- Recipient client requests queued envelopes for a recipient identity.
+- Relay returns the list (or empty list).
 
 Current command and endpoint:
 
@@ -281,13 +316,17 @@ Current command and endpoint:
 
 ### Step 5: `open` (client-side)
 
-- Input: fetched envelope JSON + local secret material/passphrase.
-- Action: client decrypts `Envelope.payload` and reconstructs `PrivatePayload`.
+- Input: fetched envelope JSON + local secret material.
+- Action: client verifies the outer signature, then decrypts `Envelope.payload` and reconstructs `PrivatePayload`.
 - Output: plaintext payload fields for local use.
 
 Current command:
 
 - `aegit msg open`
+
+### Step 6: `ack` / `delete` (client-side, optional)
+
+- Recipient may acknowledge receipt or request deletion of an envelope, both subject to the relay's auth/retention policy.
 
 ---
 
@@ -299,68 +338,78 @@ The following reflects current implementation and planned hardening.
 
 Current:
 
-- `PrivatePayload` content is encrypted before relay submission.
+- `PrivatePayload` content is encrypted before relay submission using the production hybrid PQ suite (X25519 + ML-KEM-768 → HKDF-SHA256 → XChaCha20-Poly1305).
 - Relay storage/API paths operate on envelope ciphertext containers.
 
 Limits today:
 
-- Metadata minimization is incomplete; envelope metadata remains relay-visible by design.
-- Demo cryptographic suite is for local development, not production assurance.
+- Metadata minimization is incomplete; envelope metadata (recipient, timestamps, sender_hint) remains relay-visible by design.
+- Production crypto is not yet third-party audited.
 
 ### 5.2 Integrity
 
 Current:
 
-- Cipher-based tamper detection depends on the currently selected suite behavior during `open`.
+- Hybrid PQ AEAD provides cipher-based tamper detection on the ciphertext blob.
+- Outer envelope signature (`outer_signature_b64`) is verified at `open` (Ed25519 or Dilithium3).
 
 Not complete yet:
 
-- End-to-end signed envelope integrity (`outer_signature_b64`) is not enforced in current runtime.
-- Canonical serialization rules for strict cross-implementation integrity are still draft-stage.
+- Canonical serialization rules for strict cross-implementation integrity remain in active spec work.
 
 ### 5.3 Authenticity
 
 Current:
 
-- Identity model and schema fields establish the intended authenticity framework.
-- `sender_hint` is present but not a trust anchor by itself.
+- Self-certifying `IdentityDocument` signatures verified on publish and resolve.
+- Outer envelope signatures bind sender identity to message contents.
+- `sender_hint` is informational; the outer signature is the trust anchor.
 
 Not complete yet:
 
-- Strong sender authenticity checks via verified signatures and key-chain continuity are future work.
+- Forward secrecy via prekey single-use (see 5.4).
+- Key rotation continuity proofs.
 
 ### 5.4 Forward Secrecy (future)
 
 Current:
 
-- Prekey objects and fields exist, but live prekey lifecycle semantics are not fully wired.
+- Prekey objects and `used_prekey_ids` field exist on the envelope.
+- The relay does not yet enforce single-use semantics.
 
-Future direction:
+Future direction (v0.3):
 
-- Enforce prekey use and one-time/signed prekey rotation.
-- Bind message/session cryptography to verified prekey material for forward secrecy properties.
+- Atomic single-use enforcement of `used_prekey_ids` at the relay.
+- Bind message/session cryptography to verified prekey material for true forward-secrecy properties.
 
 ---
 
 ## 6. What Is NOT Solved Yet
 
-These are important, explicit non-goals or incomplete areas in current `v0.1` architecture.
+Important explicit non-goals or incomplete areas in current `v0.2.0-alpha` architecture.
 
-- Production-grade cryptographic suite selection and migration policy.
-- End-to-end signature verification and sender authenticity enforcement.
-- Full prekey lifecycle management and forward secrecy guarantees.
-- Relay authentication, authorization, and abuse controls.
-- Federation and relay-to-relay interoperability model.
-- Strong metadata privacy beyond baseline envelope model.
-- Server-side pagination, deletion, acknowledgement, and mature retention semantics.
-- Expiry enforcement (`expires_at`) in production relay/client behavior.
-- Durable storage backends beyond local filesystem reference implementation.
-- Hardened legacy gateway downgrade protections beyond boundary placement.
+- Atomic single-use prekey enforcement and full forward secrecy guarantees (v0.3).
+- Key rotation with relay-tracked epochs (v0.3).
+- Full MIME transformation in the legacy gateway: attachments, HTML multipart, inline images (v0.3).
+- Production client applications: web, desktop, mobile (v0.3 / v0.4).
+- Attachment blob transport beyond manifest references (v0.4).
+- Thread model (`thread_id` / `in_reply_to`) wired through end-user surfaces (v0.4).
+- Federation and relay-to-relay interoperability (v1.0).
+- Strong metadata privacy beyond baseline envelope model (v1.0+).
+- Server-side pagination for large fetch sets (v1.0).
+- `expires_at` enforcement at the relay beyond the manual cleanup pass (v1.0).
+- Rate limiting and abuse controls beyond per-token scope (v1.0).
+- External security audit and FIPS 203/204 KAT test vectors (v1.0).
 
 ---
 
 ## Architectural Boundary Summary
 
-Aegis currently provides a working reference path for secure asynchronous messaging with identity-first design and untrusted transport assumptions.
+In `v0.2.0-alpha`, Aegis provides a working reference path for asynchronous secure messaging with:
 
-In `v0.1`, the strongest guarantees come from endpoint-controlled encryption and protocol layering discipline. The next architectural phase is focused on cryptographic hardening, trust enforcement completeness, and operational-scale transport behavior.
+- **Production hybrid post-quantum** confidentiality and integrity end-to-end.
+- **Self-certifying identity** with HTTP resolver and signature verification on every trust boundary.
+- **Durable relay storage** (SQLite WAL) with multi-token scoped auth, structured audit, and retention controls.
+- **Legacy email interop** via SMTP/IMAP boundary with PQ-aware downgrade enforcement.
+
+The next architectural phase (v0.3) is focused on **key lifecycle**: prekey single-use enforcement, key rotation with epochs, and broadening the legacy bridge with full MIME transformation. After that (v0.4), production client applications and real attachment transport.
