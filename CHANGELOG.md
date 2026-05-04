@@ -10,6 +10,12 @@ All notable changes to this repository are documented here.
 - `architecture.md`: §5.4 (Forward Secrecy) rewritten to reflect phase 1 shipped vs phase 2/3 remaining; §6 (What Is NOT Solved Yet) reorganized.
 - `docs/v0.2.0-alpha-roadmap.md`: v0.3 section split into phases with phase 1 marked shipped.
 
+### v0.3.0-alpha — phase 2 (prekey publish + atomic claim)
+
+- `architecture.md` §5.4: documents the publish (`POST /v1/identities/:id/prekeys`) and atomic-claim (`GET /v1/identities/:id/prekey`) endpoints, the published-check that tightens phase 1 (envelopes citing an unknown `key_id` are rejected as `400 unknown_prekey`), and the `aegit id publish-prekeys` CLI flow.
+- `architecture.md` §6: removed the "publish + atomic-claim relay endpoints" gap (now shipped); only send-side seal integration remains for phase 3.
+- `docs/v0.2.0-alpha-roadmap.md`: phase 2 marked shipped with per-repo what-shipped table.
+
 ## [v0.2.0-alpha] - 2026-05-03
 
 ### Roadmap + status
