@@ -10,6 +10,10 @@ All notable changes to this repository are documented here.
 - `architecture.md`: §5.4 (Forward Secrecy) rewritten to reflect phase 1 shipped vs phase 2/3 remaining; §6 (What Is NOT Solved Yet) reorganized.
 - `docs/v0.2.0-alpha-roadmap.md`: v0.3 section split into phases with phase 1 marked shipped.
 
+### v0.3.0-alpha — FIPS 203 / 204 finalization
+
+- `docs/pq-crypto-research.md`: rewritten "Crate Selection" section. Removes the `pqcrypto-kyber` / `pqcrypto-dilithium` rationale (which acknowledged round-3 vs FIPS as a "future migration") and replaces it with the `ml-kem` / `ml-dsa` (RustCrypto) rationale that's now in production. New "RNG plumbing note" subsection documents the `getrandom::SysRng` + `rand_core::UnwrapErr` pattern used to feed ml-dsa without bumping the workspace `rand 0.8`. "Open Questions for Future Releases" updated: prekeys + ml-kem/ml-dsa migration both marked shipped.
+
 ### v0.3.0-alpha — phase 3 (send-side integration; end-to-end forward secrecy)
 
 - `architecture.md` §5.4: rewritten as a four-link chain (generate / publish + claim / seal / push + open + consume) with all four shipped. Explicit forward-secrecy guarantee documented: each one-time prekey participates in exactly one KEM combine; the relay's atomic enforcement prevents replay; recipient consume-on-success deletes the local secret.
