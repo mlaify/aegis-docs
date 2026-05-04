@@ -200,7 +200,7 @@ Current status:
 
 - Fully implemented as JSON model and relay payload contract.
 - Outer signatures produced and verified end-to-end.
-- `used_prekey_ids` enforcement deferred to v0.3.
+- `used_prekey_ids` consumption is enforced atomically by the relay (v0.3 phase 1): each `(recipient_id, key_id)` pair is recorded once-and-only-once in the same transaction as the envelope insert; replay is rejected with `409 prekey_already_used`. Send-side population of the field by `aegit msg seal` is targeted for v0.3 phase 3.
 
 ### 2.4 `PrivatePayload`
 
@@ -262,7 +262,7 @@ Current trust enforcement points:
 Current non-enforcement points (by design or not yet implemented):
 
 - Relay plaintext inspection (not required, not trusted).
-- Atomic single-use enforcement of `used_prekey_ids` (planned v0.3).
+- Send-side prekey consumption: `aegit msg seal` does not yet populate `used_prekey_ids` from a relay-claimed one-time prekey (v0.3 phase 3); the relay-side enforcement primitive landed in v0.3 phase 1.
 - Key rotation and epoch tracking (planned v0.3).
 - Federated cross-relay trust (planned v1.0).
 
@@ -370,25 +370,26 @@ Not complete yet:
 - Forward secrecy via prekey single-use (see 5.4).
 - Key rotation continuity proofs.
 
-### 5.4 Forward Secrecy (future)
+### 5.4 Forward Secrecy (in flight)
 
-Current:
+Current (v0.3 phase 1, shipped):
 
 - Prekey objects and `used_prekey_ids` field exist on the envelope.
-- The relay does not yet enforce single-use semantics.
+- Relay enforces atomic single-use of one-time prekeys: `(recipient_id, key_id)` is recorded in a `consumed_prekeys` table within the same SQLite transaction as the envelope insert. Replay or any conflict rolls the entire write back and surfaces as `409 prekey_already_used` (RFC-0003 §12, RFC-0004 §17).
 
-Future direction (v0.3):
+Remaining (v0.3 phases 2 + 3):
 
-- Atomic single-use enforcement of `used_prekey_ids` at the relay.
-- Bind message/session cryptography to verified prekey material for true forward-secrecy properties.
+- Phase 2: prekey publish (`POST /v1/identities/:id/prekeys`) and atomic claim (`GET /v1/identities/:id/prekey`) endpoints; `aegit id init` to generate an initial bundle; `aegit id publish-prekeys` command.
+- Phase 3: `aegit msg seal` claims a one-time prekey via the relay and binds the KEM/AEAD context to the consumed prekey public key. Forward secrecy is realized end-to-end at this point.
 
 ---
 
 ## 6. What Is NOT Solved Yet
 
-Important explicit non-goals or incomplete areas in current `v0.2.0-alpha` architecture.
+Important explicit non-goals or incomplete areas as of `v0.2.0-alpha` plus the in-flight v0.3 phase 1.
 
-- Atomic single-use prekey enforcement and full forward secrecy guarantees (v0.3).
+- Prekey publish and atomic-claim relay endpoints (v0.3 phase 2).
+- Send-side prekey integration in `aegit msg seal` to realize end-to-end forward secrecy (v0.3 phase 3).
 - Key rotation with relay-tracked epochs (v0.3).
 - Full MIME transformation in the legacy gateway: attachments, HTML multipart, inline images (v0.3).
 - Production client applications: web, desktop, mobile (v0.3 / v0.4).

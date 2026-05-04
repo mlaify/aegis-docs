@@ -4,7 +4,11 @@ All notable changes to this repository are documented here.
 
 ## [Unreleased]
 
-- Ongoing `v0.2.0-alpha` stabilization.
+### v0.3.0-alpha — phase 1 (relay-side prekey enforcement)
+
+- `architecture.md`: §2.3 (`Envelope`) and §3.3 (Trust Model) updated — relay now atomically enforces `used_prekey_ids` consumption; send-side population is the remaining gap.
+- `architecture.md`: §5.4 (Forward Secrecy) rewritten to reflect phase 1 shipped vs phase 2/3 remaining; §6 (What Is NOT Solved Yet) reorganized.
+- `docs/v0.2.0-alpha-roadmap.md`: v0.3 section split into phases with phase 1 marked shipped.
 
 ## [v0.2.0-alpha] - 2026-05-03
 
