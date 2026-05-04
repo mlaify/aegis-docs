@@ -2,34 +2,36 @@
 
 Status: Informational (non-normative)
 
-This document records the crate selection rationale and implementation decisions made for the v0.2 hybrid post-quantum cryptographic suite. For the normative specification, see RFC-0005.
+This document records the crate selection rationale and implementation decisions made for the hybrid post-quantum cryptographic suite. For the normative specification, see RFC-0005.
 
 ## Background
 
 The v0.1 release included `experimental-pq`, a placeholder boundary in `aegis-crypto` with a minimal `pqcrypto-kyber` wrapper behind a feature flag. No production PQ code shipped in v0.1.
 
-v0.2 promotes PQ encryption to production status with a full hybrid construction.
+v0.2 promoted PQ encryption to production status with a full hybrid construction backed by the round-3 NIST submissions (`pqcrypto-kyber 0.8` / `pqcrypto-dilithium 0.5`, both sourced from PQClean's C reference implementations).
 
-## Crate Selection
+**v0.3.0-alpha completes the FIPS finalization** by replacing those round-3 implementations with the FIPS-final `ml-kem` and `ml-dsa` crates from the RustCrypto project. This brings the implementation in line with what RFC-0005 always claimed (FIPS 203 ML-KEM-768 / FIPS 204 ML-DSA-65) and unblocks wire-compatible interop with non-Rust clients (the web client uses `@noble/post-quantum`, which is FIPS-final-only).
 
-### KEM: `pqcrypto-kyber v0.8`
+## Crate Selection (v0.3.0-alpha onward)
 
-Already present in the workspace. Selected for v0.2 production because:
-- Proven to compile correctly in the existing workspace
-- Straightforward API: `keypair()`, `encapsulate()`, `decapsulate()`
-- Kyber768 maps directly to ML-KEM-768 (NIST FIPS 203)
-- Avoids introducing a new unknown build surface mid-release
+### KEM: `ml-kem v0.3` (RustCrypto)
 
-Future consideration: migrate to `ml-kem` (RustCrypto) once it reaches a stable API, as it uses the official FIPS 203 naming and is pure Rust with no C FFI.
+- Pure-Rust implementation of FIPS 203 final.
+- API: `MlKem768::generate_keypair()`, `EncapsulationKey::encapsulate()`, `DecapsulationKey::decapsulate()` (via the `kem` trait crate).
+- Decapsulation keys persist as 64-byte seeds (`Seed`); encapsulation keys are 1184-byte FIPS encodings. The seed-based persistence is a significant size reduction from round-3's ~2400-byte expanded secret keys.
+- No C FFI; cleaner build surface than the `pqcrypto-*` line.
+- Replaces `pqcrypto-kyber 0.8` (v0.2.0-alpha; round-3 NIST submission). **Round-3 and FIPS 203 are not byte-compatible**; published identity documents from v0.2 are not loadable by v0.3 implementations.
 
-### Signature: `pqcrypto-dilithium v0.5`
+### Signature: `ml-dsa v0.1.0-rc.9` (RustCrypto)
 
-New dep for v0.2. Selected because:
-- Same `pqcrypto` ecosystem as `pqcrypto-kyber`; consistent API conventions (`keypair()`, `detached_sign()`, `verify_detached_signature()`)
-- Dilithium3 maps to ML-DSA-65 (NIST FIPS 204), NIST Level 3 security
-- Consistent with the pqcrypto ecosystem choice already made for KEM
+- Pure-Rust implementation of FIPS 204 final.
+- API: `MlDsa65::key_gen(rng)`, `SigningKey::sign(msg)`, `VerifyingKey::verify(msg, sig)` (via the `signature` trait crate).
+- Signing keys persist as 32-byte seeds (`Seed`); verifying keys are 1952-byte FIPS encodings. Same size reduction story as ML-KEM.
+- Replaces `pqcrypto-dilithium 0.5` (v0.2.0-alpha; round-3 NIST submission). Round-3 Dilithium signatures do NOT verify under ML-DSA-65 keys and vice versa.
 
-Future consideration: migrate to `ml-dsa` (RustCrypto) when stable.
+### RNG plumbing note
+
+`ml-dsa 0.1.0-rc.9` pins `rand_core 0.10` for its `key_gen()` RNG argument. The aegis-core workspace still uses `rand 0.8` (which exports `rand_core 0.6`) elsewhere, so `aegis-crypto::keygen` calls `MlDsa65::key_gen()` with `getrandom::SysRng` wrapped in `rand_core::UnwrapErr` — the same shape used in `ml-dsa`'s own README. This avoids a workspace-wide bump of `rand` to 0.9+ that would cascade to many other crates.
 
 ### Classical KEM: `x25519-dalek v2`
 
@@ -77,7 +79,8 @@ Recipients that do not support the hybrid PQ suite will see their IdentityDocume
 
 ## Open Questions for Future Releases
 
-- **Prekey bundles**: One-time prekey consumption (forward secrecy per-message) is deferred to v0.3.
+- **Prekey bundles**: ✅ Shipped in v0.3 phases 1–3 (one-time prekey consumption, atomic relay enforcement, end-to-end forward secrecy).
+- **`ml-kem` / `ml-dsa` migration**: ✅ Shipped in v0.3.0-alpha (this document).
 - **Key rotation**: No revocation or rotation mechanism is specified yet.
-- **`ml-kem` / `ml-dsa` migration**: Once RustCrypto crates stabilize, evaluate a migration from `pqcrypto-*` to avoid C FFI dependency.
-- **Performance profiling**: ML-KEM-768 encapsulation keys (1184 bytes) and Dilithium3 signatures (~3293 bytes) increase message sizes. Benchmarks needed before recommending for constrained environments.
+- **Performance profiling**: ML-KEM-768 encapsulation keys (1184 bytes) and ML-DSA-65 signatures (~3309 bytes) increase message sizes. Benchmarks needed before recommending for constrained environments.
+- **`ml-dsa` 1.0 stable**: When `ml-dsa` graduates from `rc.x` to a stable `1.0`, drop the `getrandom::SysRng` workaround in `aegis-crypto::keygen` and feed the workspace `rand 0.9+` directly.
