@@ -4,6 +4,11 @@ All notable changes to this repository are documented here.
 
 ## [Unreleased]
 
+### Relay operator guide (closes #6)
+
+- New `docs/relay-operator-guide.md` — concise run-guide for development and self-hosted Aegis relays. Covers the five lifecycle endpoints (push / fetch / ack / delete / cleanup), local-dev token semantics + scope mapping, per-command failure → operator-action tables, the cleanup retention sweep with its three counters and operator knobs (`AEGIS_RELAY_MAX_MESSAGE_AGE_DAYS` / `AEGIS_RELAY_PURGE_ACKED_ON_CLEANUP`), and the typical-day workflow (monitor / audit / cleanup / token rotation / storage backup). Explicitly scoped to dev + self-hosted; production SRE runbooks remain in `aegis-deploy`. Cross-links RFC-0004 as the normative endpoint contract.
+- README.md updated to list the new doc.
+
 ### Security FAQ (closes #7)
 
 - New `docs/security-faq.md` — humans-language summary of Aegis's security posture as of v0.3.0-alpha. Sections:
