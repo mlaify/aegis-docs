@@ -4,6 +4,16 @@ All notable changes to this repository are documented here.
 
 ## [Unreleased]
 
+### Security FAQ (closes #7)
+
+- New `docs/security-faq.md` — humans-language summary of Aegis's security posture as of v0.3.0-alpha. Sections:
+  - Trust boundaries: relay (zero-trust), gateway (outside trusted core), discovery endpoint (TLS as trust anchor)
+  - Cryptography status: demo suite is **not** production, production hybrid PQ (X25519 + ML-KEM-768 + Ed25519 + ML-DSA-65) is, experimental-pq feature gate semantics, one-time prekey support
+  - Identity and resolution: self-certifying `amp:did:key:*`, no central CA, relay-side domain-claim flow, what happens when a relay lies about an alias
+  - What's explicitly **not** solved: full metadata privacy, production trust policy, gateway-side downgrade safety, long-term forward secrecy under key compromise
+  - Reporting issues + further-reading index
+- README.md updated to list the new doc.
+
 ### Contributor quickstart (closes #9)
 
 - New `docs/contributor-quickstart.md` — shortest-path setup guide from a fresh checkout to a working local Aegis development loop in ~15 minutes. Covers: alpha caveats, multi-repo clone layout (the four repos needed for local E2E), Rust toolchain setup, per-repo build/test verification, the `aegit-cli/scripts/local-e2e-demo.sh` round-trip script, the `scripts/validate-alpha.sh` sweep, where to go next (table of relevant docs per goal), workflow conventions, and getting-help channels.
