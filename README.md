@@ -37,6 +37,7 @@ Use `aegis-docs` to explain and navigate those artifacts.
 - `docs/local-development.md`
 - `docs/security-model.md`
 - `docs/security-faq.md`
+- `docs/relay-operator-guide.md`
 - `docs/repository-map.md`
 
 Legacy top-level docs currently remain:
