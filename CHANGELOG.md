@@ -4,6 +4,12 @@ All notable changes to this repository are documented here.
 
 ## [Unreleased]
 
+### Glossary expansion (closes #8)
+
+- New `docs/glossary.md` — expanded contributor-facing glossary with ~30 entries grouped by Protocol / Identity / Relay / Gateway / Cryptography. Each entry summarizes the term and cross-links to the canonical RFC, design doc, or source file rather than redefining content. Aliases to the existing 8-entry list at `aegis-spec/docs/glossary.md` (kept as a thin terms-only reference).
+- Covers terms across the stack: AMP, Envelope, PrivatePayload, IdentityDocument, PrekeyBundle, Suite, Demo Suite; `amp:did:key:*`, Alias, Domain Claim, Resolver, Self-certifying; Relay, Lifecycle endpoints, Retention policy, Federation, Audit Log; Gateway, Downgrade, Downgrade Policy, Downgrade Audit Event; PQ, Hybrid PQ Suite, ML-KEM-768, ML-DSA-65, KEM, AEAD, Forward Secrecy, Signature Policy, Experimental PQ.
+- README.md updated to list the new doc.
+
 ### Relay operator guide (closes #6)
 
 - New `docs/relay-operator-guide.md` — concise run-guide for development and self-hosted Aegis relays. Covers the five lifecycle endpoints (push / fetch / ack / delete / cleanup), local-dev token semantics + scope mapping, per-command failure → operator-action tables, the cleanup retention sweep with its three counters and operator knobs (`AEGIS_RELAY_MAX_MESSAGE_AGE_DAYS` / `AEGIS_RELAY_PURGE_ACKED_ON_CLEANUP`), and the typical-day workflow (monitor / audit / cleanup / token rotation / storage backup). Explicitly scoped to dev + self-hosted; production SRE runbooks remain in `aegis-deploy`. Cross-links RFC-0004 as the normative endpoint contract.
