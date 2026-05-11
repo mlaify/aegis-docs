@@ -32,6 +32,7 @@ Use `aegis-docs` to explain and navigate those artifacts.
 ## Documentation Structure
 
 - `docs/getting-started.md`
+- `docs/contributor-quickstart.md`
 - `docs/architecture-overview.md`
 - `docs/local-development.md`
 - `docs/security-model.md`
