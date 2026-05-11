@@ -4,6 +4,11 @@ All notable changes to this repository are documented here.
 
 ## [Unreleased]
 
+### Contributor quickstart (closes #9)
+
+- New `docs/contributor-quickstart.md` — shortest-path setup guide from a fresh checkout to a working local Aegis development loop in ~15 minutes. Covers: alpha caveats, multi-repo clone layout (the four repos needed for local E2E), Rust toolchain setup, per-repo build/test verification, the `aegit-cli/scripts/local-e2e-demo.sh` round-trip script, the `scripts/validate-alpha.sh` sweep, where to go next (table of relevant docs per goal), workflow conventions, and getting-help channels.
+- README.md updated to list the new doc in the Documentation Structure section.
+
 ### v0.3.0-alpha — phase 1 (relay-side prekey enforcement)
 
 - `architecture.md`: §2.3 (`Envelope`) and §3.3 (Trust Model) updated — relay now atomically enforces `used_prekey_ids` consumption; send-side population is the remaining gap.
